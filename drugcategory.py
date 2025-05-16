@@ -1,10 +1,9 @@
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 
 # --- Initialize Session State ---
-if 'control_substances' not in st.session_state:
-    st.session_state.control_substances = set([
-        'ACETAMINOPHEN-COD #3 TABLET',
+control_substances = [
+    'ACETAMINOPHEN-COD #3 TABLET',
     'ALPRAZOLAM 2 MG TABLET',
     'ALPRAZOLAM 2 MG TABS',
     'AMPHETAMINE-DEXTRO 30MG TAB',
@@ -57,34 +56,37 @@ if 'control_substances' not in st.session_state:
                             'TRIAZOLAM', 'TYLENOL/CODEINE', 'TYLENOL/COD', 'ULTRACET', 
                             'ULTRAM', 'VALIUM', 'VALTOCO', 'VERSED', 'VIMPAT', 'VYVANSE',
                               'XANAX', 'XCOPRI', 'XTAMPZA', 'ZALEPLON', 'ZOLPIDEM'
-    ])
+                              ]
 
 st.title("💊 Drug Category Classifier")
 
-# --- Upload CSV File ---
-st.subheader("📁 Upload Drug List CSV")
-uploaded_file = st.file_uploader("Upload a CSV file containing a 'DRUG NAME' column", type=["csv"])
+# --- Upload File ---
+st.subheader("📁 Upload Drug List (CSV or Excel)")
+uploaded_file = st.file_uploader("Upload a file containing a 'DRUG NAME' column", type=["csv", "xlsx"])
 
-# Placeholder for main dataframe
 df = None
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    # Determine file type and read accordingly
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    elif uploaded_file.name.endswith('.xlsx'):
+        df = pd.read_excel(uploaded_file)
 
     if 'DRUG NAME' not in df.columns:
-        st.error("❌ The uploaded CSV must contain a 'DRUG NAME' column.")
+        st.error("❌ The uploaded file must contain a 'DRUG NAME' column.")
     else:
         # Normalize drug names
         df['DRUG NAME'] = df['DRUG NAME'].astype(str).str.strip().str.upper()
 
-        # Categorization function
+        # Categorize
         def update_categories(df_local):
             df_local['Category'] = df_local['DRUG NAME'].apply(
-                lambda name: 'Control Substances' if name in st.session_state.control_substances else 'Non Control Substances'
+                lambda name: 'Control Substances' if name in control_substances else 'Non Control Substances'
             )
             return df_local
 
-        # --- Add/Remove Control Substances ---
+        # --- Modify Control Substance List ---
         st.subheader("🛠️ Modify Control Substance List (Optional)")
         with st.expander("➕ Add or ➖ Remove a Control Substance", expanded=False):
             col1, col2 = st.columns([3, 1])
@@ -104,16 +106,15 @@ if uploaded_file:
                         st.session_state.control_substances.remove(mod_drug)
                         st.warning(f"🗑️ Removed '{mod_drug}' from control substances.")
         
-        # Always update and show categorized data
+        # Update and display categorized data
         df = update_categories(df)
         st.subheader("📄 Categorized Drugs")
         st.dataframe(df[['DRUG NAME', 'Category']])
 
-        # --- Search Section ---
+        # --- Search Functionality ---
         st.subheader("🔍 Search for a Drug")
         drug_names = sorted(df['DRUG NAME'].unique().tolist())
         selected_drug = st.selectbox("Choose a drug to check its category", options=drug_names, index=0)
-
 
         if selected_drug:
             category = df[df['DRUG NAME'] == selected_drug]['Category'].iloc[0]
@@ -121,6 +122,10 @@ if uploaded_file:
             st.subheader("📋 All Entries for This Drug")
             st.dataframe(df[df['DRUG NAME'] == selected_drug])
 else:
-    st.info("📂 Please upload a CSV file to begin.")
+    st.info("📂 Please upload a CSV or Excel file to begin.")
+
+
+
+
 
 
